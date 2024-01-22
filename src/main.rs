@@ -1,4 +1,4 @@
-use std::{io::Read, io::Write, net::TcpListener};
+use std::{io::Read, io::Write, net::TcpListener, str};
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -10,16 +10,21 @@ fn main() {
         match stream {
             Ok(mut stream) => {
                 println!("accepted new connection");
-                let mut buf: [u8; 1024] = [0; 1024];
-                let read_result = stream.read(&mut buf);
-                match read_result {
-                    Ok(_num_bytes) => {
-                        // TODO: verify that we are really receiving a ping
-                        let response = b"+PONG\r\n";
-                        let _write_result = stream.write(response);
-                    }
-                    Err(e) => {
-                        println!("error: {}", e);
+                loop {
+                    let mut buf: [u8; 1024] = [0; 1024];
+                    let read_result = stream.read(&mut buf);
+                    match read_result {
+                        Ok(_num_bytes) => {
+                            let message = str::from_utf8(&buf[.._num_bytes]).unwrap();
+                            print!("received message: {}", message);
+                            // TODO: verify that we are really receiving a ping
+                            let response = b"+PONG\r\n";
+                            let _write_result = stream.write(response);
+                        }
+                        Err(e) => {
+                            println!("error: {}", e);
+                            break;
+                        }
                     }
                 }
             }
