@@ -1,5 +1,7 @@
 use std::{io::Read, io::Write, net::TcpListener, str, thread};
 
+mod resp;
+
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
 
@@ -12,8 +14,11 @@ fn main() {
                         let mut buf: [u8; 1024] = [0; 1024];
                         let read_result = stream.read(&mut buf);
                         match read_result {
-                            Ok(_num_bytes) => {
-                                let message = str::from_utf8(&buf[.._num_bytes]).unwrap();
+                            Ok(num_bytes) => {
+                                if num_bytes == 0 {
+                                    continue;
+                                }
+                                let message = str::from_utf8(&buf[..num_bytes]).unwrap();
                                 print!("received message: {}", message);
                                 // TODO: verify that we are really receiving a ping
                                 let response = b"+PONG\r\n";
