@@ -1,5 +1,6 @@
+/// https://redis.io/docs/reference/protocol-spec/
 use nom::{
-    bytes::complete::{is_not, tag, take},
+    bytes::complete::{tag, take, take_while},
     character::complete::{i32, one_of},
     combinator::verify,
     multi::count,
@@ -9,6 +10,7 @@ use nom::{
 };
 use num_bigint::BigUint;
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value<'a> {
     SimpleString(&'a str), // +
     SimpleError(&'a str),  // -
@@ -24,11 +26,6 @@ pub enum Value<'a> {
     Map,                   // %
     Set,                   // ~
     Push,                  // >
-}
-
-pub enum Command {
-    Ping,
-    Echo(String),
 }
 
 pub fn parse_value(input: &str) -> IResult<&str, Value> {
@@ -61,7 +58,7 @@ fn u32_or_minus1(input: &str) -> IResult<&str, i32> {
 }
 
 fn parse_simple_string_raw(input: &str) -> IResult<&str, &str> {
-    terminated(is_not("\r\n"), clrf)(input)
+    terminated(take_while(|c| c != '\r' && c != '\n'), clrf)(input)
 }
 
 fn parse_simple_string(input: &str) -> IResult<&str, Value> {
@@ -140,4 +137,27 @@ fn parse_set(input: &str) -> IResult<&str, Value> {
 
 fn parse_push(input: &str) -> IResult<&str, Value> {
     todo!()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case("+\r\n", Value::SimpleString(""))]
+    #[case("+OK\r\n", Value::SimpleString("OK"))]
+    #[case("+123456\r\n", Value::SimpleString("123456"))]
+    #[case("+Hello World\r\n", Value::SimpleString("Hello World"))]
+    fn test_parse_simple_string(#[case] input: &str, #[case] expected: Value) {
+        let (input, actual) = parse_value(input).unwrap();
+        assert_eq!(input, "");
+        assert_eq!(actual, expected);
+    }
+
+    #[rstest]
+    #[case("+a\nb\rc\r\n")]
+    fn test_parse_simple_string_error(#[case] input: &str) {
+        assert!(parse_value(input).is_err());
+    }
 }
